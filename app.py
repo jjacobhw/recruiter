@@ -19,7 +19,11 @@ collection = chroma_client.get_or_create_collection(
 
 # OpenAI client initialization
 client = OpenAI(api_key=openapi_api_key)
-client.chat.completions.create(
+response = client.chat.completions.create(
     model="gpt-3.5-turbo",
-    
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "How many days are in a leap year?"}
+    ],
 )
+print(response.choices[0].message['content']) 
