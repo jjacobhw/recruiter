@@ -1,29 +1,26 @@
-import os
+from langchain_ollama import OllamaLLM
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_community.document_loaders import CSVLoader
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain.chains import RetrievalQA
 from dotenv import load_dotenv
-import chromadb
-from openai import OpenAI
-from chromadb.utils import embedding_functions
 
-# Load environment variables/api keys
+# Vector DB Setup
 load_dotenv()
-openapi_api_key = os.getenv("OPENAI_API_KEY")
-openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=openapi_api_key, model_name="gpt-3.5-turbo")
+loader = CSVLoader(file_path="data/Recruiter.csv")
+documents = loader.load()
+embedding = OllamaEmbeddings(model="llama3")
+vectorstore = Chroma.from_documents(documents, embedding)
+retriever = vectorstore.as_retriever()
+model = OllamaLLM(model="llama3", temperature=0.1)
 
-# Initialize Vector Database
-chroma_client = chromadb.PersistentClient(path="chroma_persistent_storage")
-collection = "documents"
-collection = chroma_client.get_or_create_collection(
-    name=collection, embedding_function=openai_ef)
+template = """You are an exeprt in answering questions about the data provided:
+here is the question: {question}"""
 
+prompt = ChatPromptTemplate.from_template(template)
+chain = prompt | model
 
-# OpenAI client initialization
-client = OpenAI(api_key=openapi_api_key)
-response = client.chat.completions.create(
-    model="gpt-3.5-turbo",
-    messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "How many days are in a leap year?"}
-    ],
-)
-print(response.choices[0].message['content']) 
+result = chain.invoke({"question": "What is the capital of France?"})
+
+print(result)
